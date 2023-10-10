@@ -29,8 +29,17 @@ function Model(name) {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
         gl.vertexAttribPointer(shProgram.iAttribVertex, 3, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(shProgram.iAttribVertex);
-   
-        gl.drawArrays(gl.LINE_STRIP, 0, this.count);
+        
+        /*gl.drawArrays(gl.LINE_STRIP, 0, this.count);*/
+
+        for(let i = 0; i<this.count/2; i+=50){
+            gl.drawArrays(gl.LINE_STRIP, i, 50);
+        }
+        for(let i = 500; i<this.count; i+=100){
+            gl.drawArrays(gl.LINE_STRIP, i, 100);
+        }
+
+
     }
 }
 
@@ -63,7 +72,7 @@ function draw() {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     
     /* Set the values of the projection transformation */
-    let projection = m4.perspective(Math.PI/8, 1, 8, 12); 
+    let projection = m4.perspective(Math.PI/3.2, 1, 2, 20); 
     
     /* Get the view matrix from the SimpleRotator object.*/
     let modelView = spaceball.getViewMatrix();
@@ -81,7 +90,7 @@ function draw() {
     gl.uniformMatrix4fv(shProgram.iModelViewProjectionMatrix, false, modelViewProjection );
     
     /* Draw the six faces of a cube, with different colors. */
-    gl.uniform4fv(shProgram.iColor, [1,1,0,1] );
+    gl.uniform4fv(shProgram.iColor, [0.2,0.5,0.5,1] );
 
     surface.Draw();
 }
@@ -89,10 +98,28 @@ function draw() {
 function CreateSurfaceData()
 {
     let vertexList = [];
+    let c = 5;
+    let H = 1;
+    let a = 0.033*Math.PI;
+    let fi = 0;
+    let p = 8*Math.PI;
+    let omega = 0;
+    for (let u=0; u<=1; u+=0.01) {
+        omega = p*u;
+        for(let v=-5; v<=5; v+=0.2){
+            vertexList.push((c*u+v*(Math.sin(fi) + Math.tan(a)*Math.cos(fi)*Math.cos(omega))),(v*Math.tan(a)*Math.sin(omega)),(H+v*(Math.tan(a)*Math.sin(fi)*Math.cos(omega) - Math.cos(fi))));
 
-    for (let i=0; i<360; i+=5) {
-        vertexList.push( Math.sin(deg2rad(i)), 1, Math.cos(deg2rad(i)) );
-        vertexList.push( Math.sin(deg2rad(i)), 0, Math.cos(deg2rad(i)) );
+        }
+        
+    }
+    for (let v=-5; v<=5; v+=0.2) {
+        
+        for(let u=0; u<=1; u+=0.01){
+            omega = p*u;
+            vertexList.push((c*u+v*(Math.sin(fi) + Math.tan(a)*Math.cos(fi)*Math.cos(omega))),(v*Math.tan(a)*Math.sin(omega)),(H+v*(Math.tan(a)*Math.sin(fi)*Math.cos(omega) - Math.cos(fi))));
+
+        }
+        
     }
 
     return vertexList;
