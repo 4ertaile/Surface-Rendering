@@ -7,6 +7,5 @@
             "request": "launch",
             "file": "${workspaceFolder}/index.html"
         },
-		
     ]
 }
