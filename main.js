@@ -72,7 +72,7 @@ function draw() {
     let modelView = spaceball.getViewMatrix();
 
     let rotateToPointZero = m4.axisRotation([0.707, 0.707, 0], 0.7);
-    let translateToPointZero = m4.translation(0, 0, -10);
+    let translateToPointZero = m4.translation(-2, -1, -10);
 
     let matAccum0 = m4.multiply(rotateToPointZero, modelView);
     let matAccum1 = m4.multiply(translateToPointZero, matAccum0);
@@ -94,11 +94,11 @@ function draw() {
 
     surface.Draw();
 }
-const c = 5;
-const H = 1;
-const a = 0.033*Math.PI;
-const fi = 0;
-const p = 8*Math.PI
+const c = 5
+const H = 1
+const a = 0.033 * Math.PI
+const fi = 0
+const p = 8 * Math.PI
 let omega = 0
 
 const { cos, sin, sqrt, pow, PI } = Math
