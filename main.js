@@ -112,7 +112,7 @@ function draw() {
     line.BufferDataLine([XY[0], XY[1], 0, point[0]*0.1+XY[0], point[1]*0.1 +XY[1], point[2]*0.1])
     gl.uniform3fv(shProgram.iLightDirection,  m4.normalize([0-XY[0], -0.8-XY[1], 0]));
 
-    gl.uniformMatrix4fv(shProgram.iLightMat, false, m4.multiply(m4.multiply(m4.translation(0, 0, 0), m4.axisRotation([0.1, 0, 0], PI / 4)), m4.identity()));
+    gl.uniformMatrix4fv(shProgram.iLightMat, false, m4.multiply(m4.multiply(m4.translation(0, 0, 0), m4.axisRotation([0.1, 0.1, 0], PI / 4)), m4.identity()));
     line.DrawLine();
 //
 }
