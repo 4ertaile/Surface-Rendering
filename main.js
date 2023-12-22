@@ -38,6 +38,18 @@ function Model(name) {
 
         gl.drawArrays(gl.TRIANGLES, 0, this.count);
     }
+    this.BufferDataLine = function (vertices) {
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STREAM_DRAW);
+        this.count = vertices.length / 3;
+    }
+    this.DrawLine = function () {
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
+        gl.vertexAttribPointer(shProgram.iAttribVertex, 3, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(shProgram.iAttribVertex);
+        gl.drawArrays(gl.LINE_STRIP, 0, this.count);
+
+    }
 }
 
 // Constructor
@@ -46,10 +58,8 @@ function ShaderProgram(name, program) {
     this.prog = program;
 
     this.iAttribVertex = -1;
-    this.iAttribNormal = -1;
     this.iColor = -1;
     this.iModelViewProjectionMatrix = -1;
-    this.iNormalMat = -1;
 
     this.Use = function () {
         gl.useProgram(this.prog);
@@ -65,14 +75,14 @@ function draw() {
 
     let fov = Math.PI / 4;  
     let aspectRatio = 1;    
-    let near = 1;           
+    let near = 1.5;           
     let far = 50;           
     let projection = m4.perspective(fov, aspectRatio, near, far);
 
     let modelView = spaceball.getViewMatrix();
 
     let rotateToPointZero = m4.axisRotation([0.707, 0.707, 0], 0.7);
-    let translateToPointZero = m4.translation(-2, -1, -10);
+    let translateToPointZero = m4.translation(-1, -2, -8);
 
     let matAccum0 = m4.multiply(rotateToPointZero, modelView);
     let matAccum1 = m4.multiply(translateToPointZero, matAccum0);
@@ -91,8 +101,45 @@ function draw() {
     let m_green = document.getElementById('m_green').value
     let m_blue = document.getElementById('m_blue').value
     gl.uniform3fv(shProgram.iDiffuseColor, [m_red,m_green,m_blue]);
-
+//
+    gl.uniform1i(shProgram.iLighted, true);
     surface.Draw();
+    gl.uniform1i(shProgram.iLighted, false);
+    //отримуємо x та y для лінії
+    let XY = parabolaXY();
+    //задаємо току, що відображає напрямок освітлення
+    let point = m4.normalize([0-XY[0], -0.8-XY[1], 0.2]);
+    line.BufferDataLine([XY[0], XY[1], 0, point[0]*0.1+XY[0], point[1]*0.1 +XY[1], point[2]*0.1])
+    gl.uniform3fv(shProgram.iLightDirection,  m4.normalize([0-XY[0], -0.8-XY[1], 0]));
+
+    gl.uniformMatrix4fv(shProgram.iLightMat, false, m4.multiply(m4.multiply(m4.translation(0, 0, 0), m4.axisRotation([0.1, 0, 0], PI / 4)), m4.identity()));
+    line.DrawLine();
+//
+}
+const timeX = 1.8; 
+const stupcount = 1000;
+const cofA = 0.9;
+let stepX = timeX/stupcount;
+let step=0;
+let goRight = true;
+function parabolaXY(){
+    if(goRight)
+        step++;
+    else
+        step--;
+    if(step == 1000 || step ==0 )
+        goRight= !goRight;
+        let y = cofA*(stepX*step-0.9)*(stepX*step-0.9);
+        if(step <= 500)
+        return [stepX*step-0.9, -y];
+    else{
+        return [stepX*step-0.9, -y];
+    }
+}
+
+function anim() {
+    draw()
+    window.requestAnimationFrame(anim)
 }
 const c = 5
 const H = 1
@@ -189,8 +236,12 @@ function initGL() {
     shProgram.iNormalMat = gl.getUniformLocation(prog, "normalMat");
     shProgram.iColor = gl.getUniformLocation(prog, "color");
     shProgram.iDiffuseColor = gl.getUniformLocation(prog, "diffuseColor");
-    
+    shProgram.iLighted = gl.getUniformLocation(prog, "withLight");
+    shProgram.iLightDirection = gl.getUniformLocation(prog, "lightDirection");
+    shProgram.iLightMat = gl.getUniformLocation(prog, "lightMat");
+
     surface = new Model('Surface');
+    line = new Model('Light Line');
     surface.BufferData(CreateSurfaceData(), CreateNormals());
 
     gl.enable(gl.DEPTH_TEST);
@@ -264,4 +315,5 @@ function init() {
     spaceball = new TrackballRotator(canvas, draw, 0);
 
     draw();
-}//save
+    anim();
+}
