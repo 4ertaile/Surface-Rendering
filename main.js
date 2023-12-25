@@ -5,6 +5,8 @@ let surface;   // surface model
 let shProgram; // shader program
 let spaceball; // SimpleRotator 
 let line;
+let point;
+let pointCoords = [0.5, 0.5]
 
 function deg2rad(angle) {
     return angle * Math.PI / 180;
@@ -15,14 +17,18 @@ function Model(name) {
     this.name = name;
     this.iVertexBuffer = gl.createBuffer();
     this.iNormalBuffer = gl.createBuffer();
+    this.iTextureBuffer = gl.createBuffer();
     this.count = 0;
 
-    this.BufferData = function (vertices, normals) {
+    this.BufferData = function (vertices, normals, textures) {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STREAM_DRAW);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, this.iNormalBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STREAM_DRAW);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.iTextureBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textures), gl.STREAM_DRAW);
 
         this.count = vertices.length / 3;
     }
@@ -36,19 +42,11 @@ function Model(name) {
         gl.vertexAttribPointer(shProgram.iAttribNormal, 3, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(shProgram.iAttribNormal);
 
-        gl.drawArrays(gl.TRIANGLES, 0, this.count);
-    }
-    this.BufferDataLine = function (vertices) {
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STREAM_DRAW);
-        this.count = vertices.length / 3;
-    }
-    this.DrawLine = function () {
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
-        gl.vertexAttribPointer(shProgram.iAttribVertex, 3, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(shProgram.iAttribVertex);
-        gl.drawArrays(gl.LINE_STRIP, 0, this.count);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.iTextureBuffer);
+        gl.vertexAttribPointer(shProgram.iAttribTexture, 2, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(shProgram.iAttribTexture);
 
+        gl.drawArrays(gl.TRIANGLES, 0, this.count);
     }
 }
 
@@ -58,8 +56,10 @@ function ShaderProgram(name, program) {
     this.prog = program;
 
     this.iAttribVertex = -1;
+    this.iAttribNormal = -1;
     this.iColor = -1;
     this.iModelViewProjectionMatrix = -1;
+    this.iNormalMat = -1;
 
     this.Use = function () {
         gl.useProgram(this.prog);
@@ -73,16 +73,16 @@ function draw() {
     gl.clearColor(b_red, b_green, b_blue, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    let fov = Math.PI / 4;  
-    let aspectRatio = 1;    
-    let near = 1.5;           
-    let far = 50;           
+    let fov = Math.PI / 4;
+    let aspectRatio = 1;
+    let near = 1;
+    let far = 50;
     let projection = m4.perspective(fov, aspectRatio, near, far);
 
     let modelView = spaceball.getViewMatrix();
 
     let rotateToPointZero = m4.axisRotation([0.707, 0.707, 0], 0.7);
-    let translateToPointZero = m4.translation(-1, -2, -8);
+    let translateToPointZero = m4.translation(-2, -1, -10);
 
     let matAccum0 = m4.multiply(rotateToPointZero, modelView);
     let matAccum1 = m4.multiply(translateToPointZero, matAccum0);
@@ -100,46 +100,15 @@ function draw() {
     let m_red = document.getElementById('m_red').value
     let m_green = document.getElementById('m_green').value
     let m_blue = document.getElementById('m_blue').value
-    gl.uniform3fv(shProgram.iDiffuseColor, [m_red,m_green,m_blue]);
-//
-    gl.uniform1i(shProgram.iLighted, true);
+    gl.uniform3fv(shProgram.iDiffuseColor, [m_red, m_green, m_blue]);
+    gl.uniform2fv(shProgram.iPointCoords, pointCoords);
+    gl.uniform1f(shProgram.iAngle, document.getElementById('a').value);
+
     surface.Draw();
-    gl.uniform1i(shProgram.iLighted, false);
-    //отримуємо x та y для лінії
-    let XY = parabolaXY();
-    //задаємо току, що відображає напрямок освітлення
-    let point = m4.normalize([0-XY[0], -0.8-XY[1], 0.2]);
-    line.BufferDataLine([XY[0], XY[1], 0, point[0]*0.1+XY[0], point[1]*0.1 +XY[1], point[2]*0.1])
-    gl.uniform3fv(shProgram.iLightDirection,  m4.normalize([0-XY[0], -0.8-XY[1], 0]));
-
-    gl.uniformMatrix4fv(shProgram.iLightMat, false, m4.multiply(m4.multiply(m4.translation(0, 0, 0), m4.axisRotation([0.1, 0.1, 0], PI / 4)), m4.identity()));
-    line.DrawLine();
-//
-}
-const timeX = 1.8; 
-const stupcount = 1000;
-const cofA = 0.9;
-let stepX = timeX/stupcount;
-let step=0;
-let goRight = true;
-function parabolaXY(){
-    if(goRight)
-        step++;
-    else
-        step--;
-    if(step == 1000 || step ==0 )
-        goRight= !goRight;
-        let y = cofA*(stepX*step-0.9)*(stepX*step-0.9);
-        if(step <= 500)
-        return [stepX*step-0.9, -y];
-    else{
-        return [stepX*step-0.9, -y];
-    }
-}
-
-function anim() {
-    draw()
-    window.requestAnimationFrame(anim)
+    gl.uniformMatrix4fv(shProgram.iModelViewProjectionMatrix, false, m4.multiply(modelViewProjection,
+        m4.translation(...cassiniVertex(pointCoords[0], map(pointCoords[1], 0, 1, -5, 5)))));
+    gl.uniform1f(shProgram.iAngle, -100.0);
+    point.Draw();
 }
 const c = 5
 const H = 1
@@ -151,12 +120,12 @@ let omega = 0
 const { cos, sin, sqrt, pow, PI } = Math
 function CreateSurfaceData() {
     let vertexList = [];
-        const MAX_U = 1,
-            MAX_V = 5,
-            STEP_U = 0.01,
-            STEP_V = 0.2
-        for (let u = 0; u <= MAX_U; u += STEP_U) {
-            for (let v = -5; v <= MAX_V; v += STEP_V) {
+    const MAX_U = 1,
+        MAX_V = 5,
+        STEP_U = 0.01,
+        STEP_V = 0.2
+    for (let u = 0; u <= MAX_U; u += STEP_U) {
+        for (let v = -5; v <= MAX_V; v += STEP_V) {
             let vertex = cassiniVertex(u, v)
             vertexList.push(...vertex)
             vertex = cassiniVertex(u + STEP_U, v)
@@ -176,22 +145,28 @@ function CreateSurfaceData() {
 const scaler = 1;
 
 function cassiniVertex(u, v) {
-    omega = p*u
-    let x = (c*u+v*(Math.sin(fi) + Math.tan(a)*Math.cos(fi)*Math.cos(omega))),
-        y = (v*Math.tan(a)*Math.sin(omega)),
-        cV = (H+v*(Math.tan(a)*Math.sin(fi)*Math.cos(omega) - Math.cos(fi)));
+    omega = p * u
+    let x = (c * u + v * (Math.sin(fi) + Math.tan(a) * Math.cos(fi) * Math.cos(omega))),
+
+
+        y = (v * Math.tan(a) * Math.sin(omega)),
+
+
+        cV = (H + v * (Math.tan(a) * Math.sin(fi) * Math.cos(omega) - Math.cos(fi)));
+
+
     return [scaler * x, scaler * y, scaler * cV];
 }
 
 function CreateNormals() {
     let normalList = [];
-        const MAX_U = 1,
-            MAX_V = 5,
-            STEP_U = 0.01,
-            STEP_V = 0.2
-        omega = 0
-        for (let u = 0; u <= MAX_U; u += STEP_U) {
-           for (let v = -5; v <= MAX_V; v += STEP_V) {
+    const MAX_U = 1,
+        MAX_V = 5,
+        STEP_U = 0.01,
+        STEP_V = 0.2
+    omega = 0
+    for (let u = 0; u <= MAX_U; u += STEP_U) {
+        for (let v = -5; v <= MAX_V; v += STEP_V) {
             let vertex = normalAnalytic(u, v)
             normalList.push(...vertex)
             vertex = normalAnalytic(u + STEP_U, v)
@@ -224,6 +199,65 @@ function normalAnalytic(u, v) {
     return n
 }
 
+function CreateTextures() {
+    let textureList = []
+    const MAX_U = 1,
+        MAX_V = 5,
+        STEP_U = 0.01,
+        STEP_V = 0.2
+    omega = 0
+    for (let u = 0; u <= MAX_U; u += STEP_U) {
+        for (let v = -5; v <= MAX_V; v += STEP_V) {
+            textureList.push(u, map(v, -5, MAX_V, 0, 1))
+            textureList.push(u + STEP_U, map(v, -5, MAX_V, 0, 1))
+            textureList.push(u, map(v + STEP_V, -5, MAX_V, 0, 1))
+            textureList.push(u, map(v + STEP_V, -5, MAX_V, 0, 1))
+            textureList.push(u + STEP_U, map(v, -5, MAX_V, 0, 1))
+            textureList.push(u + STEP_U, map(v + STEP_V, -5, MAX_V, 0, 1))
+        }
+    }
+    return textureList;
+}
+function map(value, a, b, c, d) {
+    value = (value - a) / (b - a);
+    return c + value * (d - c);
+}
+const r = 0.2
+function CreateSphereVertices(step = 0.15) {
+    let vertexList = [];
+
+    let u = 0,
+        v = 0;
+    while (u < Math.PI * 2) {
+        while (v < Math.PI) {
+
+            let v1 = getSpheVertex(u, v, r);
+            let v2 = getSpheVertex(u + step, v, r);
+            let v3 = getSpheVertex(u, v + step, r);
+            let v4 = getSpheVertex(u + step, v + step, r);
+
+
+            vertexList.push(v1.x, v1.y, v1.z);
+            vertexList.push(v2.x, v2.y, v2.z);
+            vertexList.push(v3.x, v3.y, v3.z);
+            vertexList.push(v3.x, v3.y, v3.z);
+            vertexList.push(v2.x, v2.y, v2.z);
+            vertexList.push(v4.x, v4.y, v4.z);
+            v += step;
+        }
+        v = 0;
+        u += step;
+    }
+    return vertexList;
+}
+function getSpheVertex(long, lat, r) {
+    return {
+        x:   Math.sin(lat) * Math.cos(long) * r,
+        y:   Math.sin(lat) * Math.sin(long) * r,
+        z:   Math.cos(lat) * r
+    }
+}
+
 function initGL() {
     let prog = createProgram(gl, vertexShaderSource, fragmentShaderSource);
 
@@ -232,18 +266,19 @@ function initGL() {
 
     shProgram.iAttribVertex = gl.getAttribLocation(prog, "vertex");
     shProgram.iAttribNormal = gl.getAttribLocation(prog, "normal");
+    shProgram.iAttribTexture = gl.getAttribLocation(prog, "texture");
     shProgram.iModelViewProjectionMatrix = gl.getUniformLocation(prog, "ModelViewProjectionMatrix");
     shProgram.iNormalMat = gl.getUniformLocation(prog, "normalMat");
     shProgram.iColor = gl.getUniformLocation(prog, "color");
     shProgram.iDiffuseColor = gl.getUniformLocation(prog, "diffuseColor");
-    shProgram.iLighted = gl.getUniformLocation(prog, "withLight");
-    shProgram.iLightDirection = gl.getUniformLocation(prog, "lightDirection");
-    shProgram.iLightMat = gl.getUniformLocation(prog, "lightMat");
+    shProgram.iPointCoords = gl.getUniformLocation(prog, "textureTranslation");
+    shProgram.iAngle = gl.getUniformLocation(prog, "angle");
 
     surface = new Model('Surface');
-    line = new Model('Light Line');
-    surface.BufferData(CreateSurfaceData(), CreateNormals());
-
+    surface.BufferData(CreateSurfaceData(), CreateNormals(), CreateTextures());
+    let svs = CreateSphereVertices()
+    point = new Model()
+    point.BufferData(svs, svs, svs)
     gl.enable(gl.DEPTH_TEST);
 }
 
@@ -289,11 +324,30 @@ function init() {
     document.getElementById('m_blue').onchange = (e) => {
         draw()
     }
+    document.getElementById('a').onchange = (e) => {
+        draw()
+    }
+    window.onkeydown = (e) => {
+        if (e.keyCode == 87) {
+            pointCoords[0] = Math.min(pointCoords[0] + 0.02, 1);
+        }
+        else if (e.keyCode == 65) {
+            pointCoords[1] = Math.max(pointCoords[1] - 0.02, 0);
+        }
+        else if (e.keyCode == 83) {
+            pointCoords[0] = Math.max(pointCoords[0] - 0.02, 0);
+        }
+        else if (e.keyCode == 68) {
+            pointCoords[1] = Math.min(pointCoords[1] + 0.02, 1);
+        }
+        draw()
+    }
 
     let canvas;
     try {
         canvas = document.getElementById("webglcanvas");
         gl = canvas.getContext("webgl");
+        LoadTexture();
         if (!gl) {
             throw "Browser does not support WebGL";
         }
@@ -315,5 +369,28 @@ function init() {
     spaceball = new TrackballRotator(canvas, draw, 0);
 
     draw();
-    anim();
+}//save
+
+function LoadTexture() {
+    let texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+    const image = new Image();
+    image.crossOrigin = 'anonymus';
+    image.src = "";//my git picture
+    image.onload = () => {
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texImage2D(
+            gl.TEXTURE_2D,
+            0,
+            gl.RGBA,
+            gl.RGBA,
+            gl.UNSIGNED_BYTE,
+            image
+        );
+        console.log("imageLoaded")
+        draw()
+    }
 }
