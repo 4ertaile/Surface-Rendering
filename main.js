@@ -379,7 +379,7 @@ function LoadTexture() {
 
     const image = new Image();
     image.crossOrigin = 'anonymus';
-    image.src = "";//my git picture
+    image.src = "https://raw.githubusercontent.com/4ertaile/Surface-Rendering/CGW/Texture.jpg";//my git picture
     image.onload = () => {
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.texImage2D(
